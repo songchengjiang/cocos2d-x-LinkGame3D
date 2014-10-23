@@ -17,6 +17,22 @@ public:
     
     // implement the "static create()" method manually
     CREATE_FUNC(HelloWorld);
+
+private:
+
+    void setCamera();
+    void setHandleEvent();
+    void resetScene();
+    bool isTouchElement(cocos2d::Touch *touch);
+    bool checkNeedEliminate();
+
+private:
+
+#define  MAX_ELEMENT_NUM_IN_LINE 10
+    cocos2d::Sprite3D *_elements[MAX_ELEMENT_NUM_IN_LINE * MAX_ELEMENT_NUM_IN_LINE];
+    cocos2d::Layer *_elementContainer;
+    cocos2d::Camera *_camera;
+    int _touchElements[2];
 };
 
 #endif // __HELLOWORLD_SCENE_H__
