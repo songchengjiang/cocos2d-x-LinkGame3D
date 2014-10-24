@@ -2,6 +2,7 @@
 #define __HELLOWORLD_SCENE_H__
 
 #include "cocos2d.h"
+#include "DrawNode3D.h"
 
 class HelloWorld : public cocos2d::Layer
 {
@@ -25,14 +26,21 @@ private:
     void resetScene();
     bool isTouchElement(cocos2d::Touch *touch);
     bool checkNeedEliminate();
+    bool canReached(int location);
+    bool BFSearch(int start, int end, std::vector<int> &path, int searchCount);
 
 private:
 
 #define  MAX_ELEMENT_NUM_IN_LINE 10
-    cocos2d::Sprite3D *_elements[MAX_ELEMENT_NUM_IN_LINE * MAX_ELEMENT_NUM_IN_LINE];
+#define  MAX_CAPACITY_NUM_IN_LINE (MAX_ELEMENT_NUM_IN_LINE + 2)
+#define  MAX_CAPACITY_NUM (MAX_CAPACITY_NUM_IN_LINE * MAX_CAPACITY_NUM_IN_LINE)
+    cocos2d::Sprite3D *_elements[MAX_CAPACITY_NUM];
     cocos2d::Layer *_elementContainer;
     cocos2d::Camera *_camera;
     int _touchElements[2];
+    cocos2d::Size _elementSize;
+
+    cocos2d::DrawNode3D *_drawNode;
 };
 
 #endif // __HELLOWORLD_SCENE_H__

@@ -79,6 +79,9 @@ bool HelloWorld::init()
     
     _elementContainer = Layer::create();
     this->addChild(_elementContainer);
+    _drawNode = DrawNode3D::create();
+    _drawNode->setCameraMask((unsigned short)CameraFlag::USER1);
+    this->addChild(_drawNode);
     resetScene();
     setCamera();
     setHandleEvent();
@@ -102,26 +105,54 @@ void HelloWorld::menuCloseCallback(Ref* pSender)
 
 void HelloWorld::resetScene()
 {
+    memset(_elements, 0, sizeof(_elements));
     _elementContainer->removeAllChildren();
     _touchElements[0] = _touchElements[1] = TOUCH_NONE;
-    for (int i = 0; i < MAX_ELEMENT_NUM_IN_LINE; ++i)
+
+    std::vector<std::pair<int, int> > emptySpace;
+    for (int i = 1; i < MAX_CAPACITY_NUM_IN_LINE - 1; ++i)
+        for (int j = 1; j < MAX_CAPACITY_NUM_IN_LINE - 1; ++j)
+            emptySpace.push_back(std::pair<int, int>(i, j));
+
+
+    while (!emptySpace.empty())
     {
-        for (int j = 0; j < MAX_ELEMENT_NUM_IN_LINE; ++j)
+        std::string tex = images[(unsigned int)(CCRANDOM_0_1() * (IMAGE_NUM - 1))];
+        //first element
         {
-            auto sprite = Sprite3D::create("models/cow.c3b");
+            unsigned int index = (unsigned int)(CCRANDOM_0_1() * (emptySpace.size() - 1));
+            auto location = emptySpace.at(index);
+            auto sprite = Sprite3D::create("models/box.c3b");
             auto size = sprite->getBoundingBox().size;
-            std::string tex = images[(unsigned int)(CCRANDOM_0_1() * (IMAGE_NUM - 1))];
+            _elementSize = size;
             sprite->setTexture(tex);
             sprite->setName(tex);
-            sprite->setPosition3D(Vec3((-(MAX_ELEMENT_NUM_IN_LINE / 2 - size.width / 2.0f) + i) * size.width, 0.0f, (-(MAX_ELEMENT_NUM_IN_LINE / 2 - size.height / 2.0f) + j) * size.height));
-            //sprite->runAction(RepeatForever::create(Sequence::create(TintTo::create(0.01f, 255, 0, 0), TintTo::create(0.01f, 255, 255, 255), nullptr)));
+            sprite->setPosition3D(Vec3((-(MAX_ELEMENT_NUM_IN_LINE / 2 - size.width / 2.0f) + location.first - 1) * size.width, 0.0f, (-(MAX_ELEMENT_NUM_IN_LINE / 2 - size.height / 2.0f) + location.second - 1) * size.height));
             _elementContainer->addChild(sprite);
-            _elements[i * MAX_ELEMENT_NUM_IN_LINE + j] = sprite;
+            _elements[location.first * MAX_CAPACITY_NUM_IN_LINE + location.second] = sprite;
+            emptySpace.erase(emptySpace.begin() + index);
         }
+        //second element
+        {
+            unsigned int index = (unsigned int)(CCRANDOM_0_1() * (emptySpace.size() - 1));
+            auto location = emptySpace.at(index);
+            auto sprite = Sprite3D::create("models/box.c3b");
+            auto size = sprite->getBoundingBox().size;
+            _elementSize = size;
+            sprite->setTexture(tex);
+            sprite->setName(tex);
+            sprite->setPosition3D(Vec3((-(MAX_ELEMENT_NUM_IN_LINE / 2 - size.width / 2.0f) + location.first - 1) * size.width, 0.0f, (-(MAX_ELEMENT_NUM_IN_LINE / 2 - size.height / 2.0f) + location.second - 1) * size.height));
+            _elementContainer->addChild(sprite);
+            _elements[location.first * MAX_CAPACITY_NUM_IN_LINE + location.second] = sprite;
+            emptySpace.erase(emptySpace.begin() + index);
+        }
+
     }
-    auto sprite = Sprite3D::create("models/cow.c3b");
-    sprite->setPosition3D(Vec3(0.0f, 1.0f, 0.0f));
-    _elementContainer->addChild(sprite);
+
+    //auto sprite = Sprite3D::create("D:/Develop/cocos2d-x/tests/cpp-tests/Resources/Sprite3DTest/orc.c3b");
+    //sprite->setPosition3D(Vec3(0.0f, 1.0f, 0.0f));
+    //sprite->setScale(0.1f);
+    //_elementContainer->addChild(sprite);
     _elementContainer->setCameraMask((unsigned short)CameraFlag::USER1);
 }
 
@@ -130,7 +161,7 @@ void HelloWorld::setCamera()
     Size visibleSize = Director::getInstance()->getVisibleSize();
     _camera=Camera::createPerspective(30.0f, visibleSize.width / visibleSize.height, 1.0f, 1000.0f);
     _camera->setCameraFlag(CameraFlag::USER1);
-    _camera->setPosition3D(Vec3(0.0f, MAX_ELEMENT_NUM_IN_LINE * 2.0f, -MAX_ELEMENT_NUM_IN_LINE * 2.0f));
+    _camera->setPosition3D(Vec3(0.0f, MAX_ELEMENT_NUM_IN_LINE * 1.2 , MAX_ELEMENT_NUM_IN_LINE * 1.2 ));
     _camera->lookAt(Vec3(0.0f, 0.0f, 0.0f), Vec3(0.0f, 1.0f, 0.0f));
     this->addChild(_camera);
 }
@@ -159,25 +190,51 @@ void HelloWorld::setHandleEvent()
 
 bool HelloWorld::isTouchElement( Touch *touch )
 {
-    bool isTouch = false;
-    for (int i = 0; i < MAX_ELEMENT_NUM_IN_LINE; ++i)
+#if 0
+    _drawNode->clear();
+#endif
+    std::vector<std::pair<int, Sprite3D *>> sortedElements;
+    for (int i = 0; i < MAX_CAPACITY_NUM; ++i)
     {
-        for (int j = 0; j < MAX_ELEMENT_NUM_IN_LINE; ++j)
+        if (_elements[i])
         {
-            int index = i * MAX_ELEMENT_NUM_IN_LINE + j;
-            auto location = touch->getLocationInView();
-            Vec3 nearP(location.x, location.y, 0.0f), farP(location.x, location.y, 1.0f);
-            auto size = Director::getInstance()->getWinSize();
-            _camera->unproject(size, &nearP, &nearP);
-            _camera->unproject(size, &farP, &farP);
-            auto ray = Ray(nearP, (farP - nearP).getNormalized());
-            const AABB &aabb = _elements[index]->getAABB();
-            if (ray.intersects(aabb))
+            Vec3 posInView;
+            _camera->getViewMatrix().transformPoint(_elements[i]->getPosition3D(), &posInView);
+            _elements[i]->setGlobalZOrder(-posInView.z);
+            sortedElements.push_back(std::pair<int, Sprite3D *>(i, _elements[i]));
+        }
+    }
+
+    std::sort(sortedElements.begin(), sortedElements.end(), [](std::pair<int, Sprite3D *> left, std::pair<int, Sprite3D *> right){
+        return left.second->getGlobalZOrder() < right.second->getGlobalZOrder();
+    });
+
+    bool isTouch = false;
+    for (auto iter : sortedElements)
+    {
+#if 0
+        const AABB &degaabb = iter.second->getAABB();
+        Vec3 degcorners[8];
+        degaabb.getCorners(degcorners);
+        _drawNode->drawCube(degcorners, Color4F(0.0f, 1.0f, 0.0f, 1.0f));
+#endif
+
+        auto location = touch->getLocationInView();
+        Vec3 nearP(location.x, location.y, -1.0f), farP(location.x, location.y, 1.0f);
+        auto size = Director::getInstance()->getWinSize();
+        _camera->unproject(size, &nearP, &nearP);
+        _camera->unproject(size, &farP, &farP);
+        auto ray = Ray(nearP, (farP - nearP).getNormalized());
+        const AABB &aabb = iter.second->getAABB();
+        if (ray.intersects(aabb))
+        {
+            if (iter.first != _touchElements[0])
             {
-                _elements[index]->setColor(Color3B(255, 0, 0));
-                _touchElements[0] == TOUCH_NONE? _touchElements[0] = index: _touchElements[1] = index;
+                _elements[iter.first]->setColor(Color3B(255, 0, 0));
+                _touchElements[0] == TOUCH_NONE? _touchElements[0] = iter.first: _touchElements[1] = iter.first;
                 isTouch = true;
             }
+            break;
         }
     }
 
@@ -185,15 +242,17 @@ bool HelloWorld::isTouchElement( Touch *touch )
     {
         if (checkNeedEliminate())
         {
-            _elements[_touchElements[0]]->setVisible(false);
-            _elements[_touchElements[1]]->setVisible(false);
-            _touchElements[0] = _touchElements[1] = TOUCH_NONE;
+            _elements[_touchElements[0]]->getParent()->removeChild(_elements[_touchElements[0]]);
+            _elements[_touchElements[1]]->getParent()->removeChild(_elements[_touchElements[1]]);
+            _elements[_touchElements[0]] = _elements[_touchElements[1]] = nullptr;
+            //_drawNode->clear();
         }
         else
         {
             _elements[_touchElements[0]]->setColor(Color3B(255, 255, 255));
             _elements[_touchElements[1]]->setColor(Color3B(255, 255, 255));
         }
+        _touchElements[0] = _touchElements[1] = TOUCH_NONE;
     }
 
     return isTouch;
@@ -201,5 +260,107 @@ bool HelloWorld::isTouchElement( Touch *touch )
 
 bool HelloWorld::checkNeedEliminate()
 {
+    if (_elements[_touchElements[0]]->getName() == _elements[_touchElements[1]]->getName())
+    {
+        std::vector<int> path;
+        if (BFSearch(_touchElements[0], _touchElements[1], path, 0)){
+            for (unsigned int i = 0; i < path.size() - 1; ++i)
+            {
+                int rowi = path[i] / MAX_CAPACITY_NUM_IN_LINE;
+                int coli = path[i] - (rowi * MAX_CAPACITY_NUM_IN_LINE);
+                int rowi1 = path[i + 1] / MAX_CAPACITY_NUM_IN_LINE;
+                int coli1 = path[i + 1] - (rowi1 * MAX_CAPACITY_NUM_IN_LINE);
+                Vec3 posi = Vec3((-(MAX_CAPACITY_NUM_IN_LINE / 2 - _elementSize.width / 2.0f) + rowi) * _elementSize.width, 0.0f, (-(MAX_CAPACITY_NUM_IN_LINE / 2 - _elementSize.height / 2.0f) + coli) * _elementSize.height);
+                Vec3 posi1 = Vec3((-(MAX_CAPACITY_NUM_IN_LINE / 2 - _elementSize.width / 2.0f) + rowi1) * _elementSize.width, 0.0f, (-(MAX_CAPACITY_NUM_IN_LINE / 2 - _elementSize.height / 2.0f) + coli1) * _elementSize.height);
+                _drawNode->drawLine(posi, posi1, Color4F(0.0f, 1.0f, 0.0f, 1.0f));
+            }
+            return true;
+        }
+    }
     return false;
+}
+
+bool HelloWorld::canReached( int location )
+{
+    return _elements[location] == nullptr? true: false;
+}
+
+bool HelloWorld::BFSearch( int start, int end, std::vector<int> &path, int searchCount)
+{
+    if (searchCount > 2) 
+        return false;
+    bool searchState = false;
+    do 
+    {
+        path.push_back(start);
+        int row = start / MAX_CAPACITY_NUM_IN_LINE;
+        //int col = start - (row * MAX_CAPACITY_NUM_IN_LINE);
+        //left row
+        for (int i = start - 1; i >= (row * MAX_CAPACITY_NUM_IN_LINE); --i)
+        {
+            if (!canReached(i)){
+                if (i == end) {
+                    path.push_back(i);
+                    searchState = true;
+                }
+                break;
+            }
+            if (BFSearch(i, end, path, searchCount + 1)){
+                searchState = true;
+                break;
+            }
+        }
+        if (searchState) break;
+        //right row
+        for (int i = start + 1; i < ((row + 1) * MAX_CAPACITY_NUM_IN_LINE); ++i)
+        {
+            if (!canReached(i)){
+                if (i == end) {
+                    path.push_back(i);
+                    searchState = true;
+                }
+                break;
+            }
+            if (BFSearch(i, end, path, searchCount + 1)){
+                searchState = true;
+                break;
+            }
+        }
+        if (searchState) break;
+        //top col
+        for (int i = start - MAX_CAPACITY_NUM_IN_LINE; i >= 0; i -= MAX_CAPACITY_NUM_IN_LINE)
+        {
+            if (!canReached(i)){
+                if (i == end) {
+                    path.push_back(i);
+                    searchState = true;
+                }
+                break;
+            }
+            if (BFSearch(i, end, path, searchCount + 1)){
+                searchState = true;
+                break;
+            }
+        }
+        if (searchState) break;
+        //button row
+        for (int i = start + MAX_CAPACITY_NUM_IN_LINE; i < MAX_CAPACITY_NUM; i += MAX_CAPACITY_NUM_IN_LINE)
+        {
+            if (!canReached(i)){
+                if (i == end) {
+                    path.push_back(i);
+                    searchState = true;
+                }
+                break;
+            }
+            if (BFSearch(i, end, path, searchCount + 1)){
+                searchState = true;
+                break;
+            }
+        }
+        if (!searchState)
+            path.pop_back();
+    } while (false);
+
+    return searchState;
 }
