@@ -308,7 +308,7 @@ void GameWorld::eliminateElements(float dt)
 
 bool GameWorld::checkNeedEliminate()
 {
-    //if (_elements[_touchElements[0]]->getName() == _elements[_touchElements[1]]->getName())
+    if (_elements[_touchElements[0]]->getName() == _elements[_touchElements[1]]->getName())
     {
         std::vector<int> path;
         if (BFSearch(_touchElements[0], _touchElements[1], path)){
