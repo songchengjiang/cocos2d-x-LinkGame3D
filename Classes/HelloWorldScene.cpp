@@ -7,6 +7,63 @@ USING_NS_CC;
 #define TOUCH_NONE -1
 #define BACKGROUND_TAG 0x00010001
 
+bool GameData::readLevelData( const std::string &filePath )
+{
+    tinyxml2::XMLDocument *xmlDoc = new tinyxml2::XMLDocument;
+    ssize_t size;
+    char *pFileContent = (char*)FileUtils::getInstance()->getFileData( filePath.c_str() , "r", &size);
+    xmlDoc->Parse(pFileContent, 0);
+    tinyxml2::XMLError error = xmlDoc->LoadFile(filePath.c_str());
+    if (error != tinyxml2::XML_SUCCESS) return false;
+    tinyxml2::XMLElement *linkgame = xmlDoc->FirstChildElement("LinkGame");
+    if (linkgame)
+    {
+        tinyxml2::XMLElement *textures = linkgame->FirstChildElement("Textures");
+        if (textures)
+        {
+            tinyxml2::XMLElement *texture = textures->FirstChildElement("texture");
+            while (texture)
+            {
+                textureList.push_back(texture->GetText());
+                texture = texture->NextSiblingElement("texture");
+            }
+        }
+
+        tinyxml2::XMLElement *level = linkgame->FirstChildElement("Level");
+        while (level)
+        {
+            int val = atoi(level->Attribute("value"));
+            levelList[val].background = level->Attribute("background");
+            tinyxml2::XMLElement *location = level->FirstChildElement("location");
+            while (location)
+            {
+                int x = atoi(location->Attribute("x"));
+                int y = atoi(location->Attribute("y"));
+                levelList[val].locations.push_back(std::pair<int, int>(x, y));
+                location = location->NextSiblingElement("location");
+            }
+
+            level = level->NextSiblingElement("Level");
+        }
+    }
+
+    resetLevel();
+
+    delete xmlDoc;
+    return true;
+}
+
+GameData::GameData()
+    : currentLevel(-1)
+{
+
+}
+
+void GameData::resetLevel()
+{
+    if (!levelList.empty())
+        currentLevel = levelList.begin()->first;
+}
 
 Scene* GameWorld::createScene()
 {
@@ -28,7 +85,7 @@ bool GameWorld::init()
 {
     //////////////////////////////
     // 1. super init first
-    if ( !Layer::init() || !readLevels())
+    if ( !Layer::init())
     {
         return false;
     }
@@ -65,6 +122,48 @@ bool GameWorld::init()
 
     //// add the sprite as a child to this layer
     //this->addChild(sprite, 0);
+
+    {
+        auto menuButton = ui::Button::create("menu.png");
+        menuButton->setPosition(Vec2(menuButton->getContentSize().width, visibleSize.height - 20.0f));
+        menuButton->addTouchEventListener([&](Ref *pSender, ui::Widget::TouchEventType type){
+            if (type == ui::Widget::TouchEventType::ENDED){
+                Director::getInstance()->replaceScene(GameStart::createScene());
+            }
+        });
+        menuButton->setZoomScale(0.2f);
+        menuButton->setScale(0.5f);
+        menuButton->setPressedActionEnabled(true);
+        this->addChild(menuButton);
+    }
+
+    {
+        auto levelsButton = ui::Button::create("levels.png");
+        levelsButton->setPosition(Vec2(levelsButton->getContentSize().width * 2.0f, visibleSize.height - 20.0f));
+        levelsButton->addTouchEventListener([&](Ref *pSender, ui::Widget::TouchEventType type){
+            if (type == ui::Widget::TouchEventType::ENDED){
+                Director::getInstance()->replaceScene(GameLevelSelect::createScene());
+            }
+        });
+        levelsButton->setZoomScale(0.2f);
+        levelsButton->setScale(0.5f);
+        levelsButton->setPressedActionEnabled(true);
+        this->addChild(levelsButton);
+    }
+
+    {
+        auto resetButton = ui::Button::create("reset.png");
+        resetButton->setPosition(Vec2(resetButton->getContentSize().width * 3.0f, visibleSize.height - 20.0f));
+        resetButton->addTouchEventListener([&](Ref *pSender, ui::Widget::TouchEventType type){
+            if (type == ui::Widget::TouchEventType::ENDED){
+                Director::getInstance()->replaceScene(GameWorld::createScene());
+            }
+        });
+        resetButton->setZoomScale(0.2f);
+        resetButton->setScale(0.5f);
+        resetButton->setPressedActionEnabled(true);
+        this->addChild(resetButton);
+    }
     
     _elementContainer = Layer::create();
     this->addChild(_elementContainer);
@@ -72,28 +171,28 @@ bool GameWorld::init()
     _drawNode->setCameraMask((unsigned short)CameraFlag::USER1);
     this->addChild(_drawNode);
     _levelLabel = Label::createWithTTF("Level 0", "fonts/Marker Felt.ttf", 24);
-    _levelLabel->setPosition(10.0f + _levelLabel->getContentSize().width, visibleSize.height - 20.0f);
+    _levelLabel->setPosition(visibleSize.width - _levelLabel->getContentSize().width * 3.0f, visibleSize.height - 20.0f);
     this->addChild(_levelLabel);
-    auto iter = _gameData.levelList.begin();
-    resetLevel(iter->first);
+    auto iter = GameData::Instance()->levelList.begin();
+    resetLevel();
     setTimeLine();
     setScore();
     setHandleEvent();
     return true;
 }
 
-void GameWorld::resetLevel(int level)
+void GameWorld::resetLevel()
 {
-    _level = level;
+    int level = GameData::Instance()->currentLevel;
     char str[32];
-    sprintf(str, "Level %d", _level);
+    sprintf(str, "Level %d", level);
     _levelLabel->setString(str);
 
     memset(_elements, 0, sizeof(_elements));
     _elementContainer->removeAllChildren();
     _touchElements[0] = _touchElements[1] = TOUCH_NONE;
 
-    std::vector<std::pair<int, int> > emptySpace = _gameData.levelList[_level].locations;
+    std::vector<std::pair<int, int> > emptySpace = GameData::Instance()->levelList[level].locations;
 
     //std::vector<std::pair<int, int> > emptySpace;
     //for (int i = 1; i < MAX_CAPACITY_NUM_IN_LINE - 1; ++i)
@@ -103,7 +202,7 @@ void GameWorld::resetLevel(int level)
 
     while (!emptySpace.empty())
     {
-        std::string tex = _gameData.textureList[(unsigned int)(CCRANDOM_0_1() * (_gameData.textureList.size() - 1))];
+        std::string tex = GameData::Instance()->textureList[(unsigned int)(CCRANDOM_0_1() * (GameData::Instance()->textureList.size() - 1))];
         //first element
         {
             unsigned int index = (unsigned int)(CCRANDOM_0_1() * (emptySpace.size() - 1));
@@ -138,7 +237,7 @@ void GameWorld::resetLevel(int level)
     }
 
     this->removeChildByTag(BACKGROUND_TAG);
-    auto background = Sprite::create(_gameData.levelList[_level].background);
+    auto background = Sprite::create(GameData::Instance()->levelList[level].background);
     background->setCameraMask((unsigned short)CameraFlag::USER2);
     background->setAnchorPoint(Vec2(0.0f, 0.0f));
     this->addChild(background, 0, BACKGROUND_TAG);
@@ -301,7 +400,6 @@ void GameWorld::eliminateElements(float dt)
     _drawNode->clear();
      _touchElements[0] = _touchElements[1] = TOUCH_NONE;
      updateScore();
-     updateTimeLine(-2.0f);
      if (_elementContainer->getChildrenCount() == 0)
          gamePass();
 }
@@ -578,53 +676,12 @@ void GameWorld::updateScore()
 
 void GameWorld::gamePass()
 {
-    int level = _level + 1;
-    int lastLevel = _gameData.levelList.rbegin()->first;
+    int level = ++GameData::Instance()->currentLevel;
+    int lastLevel = GameData::Instance()->levelList.rbegin()->first;
     if (lastLevel < level)
-        gameOver();
+        Director::getInstance()->replaceScene(GameLevelSelect::createScene());
     else
-        resetLevel(level);
-}
-
-bool GameWorld::readLevels()
-{
-    tinyxml2::XMLDocument *xmlDoc = new tinyxml2::XMLDocument;
-    tinyxml2::XMLError error = xmlDoc->LoadFile("levels.xml");
-    if (error != tinyxml2::XML_SUCCESS) return false;
-    tinyxml2::XMLElement *linkgame = xmlDoc->FirstChildElement("LinkGame");
-    if (linkgame)
-    {
-        tinyxml2::XMLElement *textures = linkgame->FirstChildElement("Textures");
-        if (textures)
-        {
-            tinyxml2::XMLElement *texture = textures->FirstChildElement("texture");
-            while (texture)
-            {
-                _gameData.textureList.push_back(texture->GetText());
-                texture = texture->NextSiblingElement("texture");
-            }
-        }
-
-        tinyxml2::XMLElement *level = linkgame->FirstChildElement("Level");
-        while (level)
-        {
-            int val = atoi(level->Attribute("value"));
-            _gameData.levelList[val].background = level->Attribute("background");
-            tinyxml2::XMLElement *location = level->FirstChildElement("location");
-            while (location)
-            {
-                int x = atoi(location->Attribute("x"));
-                int y = atoi(location->Attribute("y"));
-                _gameData.levelList[val].locations.push_back(std::pair<int, int>(x, y));
-                location = location->NextSiblingElement("location");
-            }
-
-            level = level->NextSiblingElement("Level");
-        }
-    }
-    
-    delete xmlDoc;
-    return true;
+        Director::getInstance()->replaceScene(GameWorld::createScene());
 }
 
 GameWorld::GameWorld()
@@ -693,8 +750,26 @@ bool GameStart::init()
     }
 
     {
+        auto levelsButton = ui::Button::create("animationbuttonnormal.png");
+        levelsButton->setPosition(Vec2(visibleSize.width / 2.0f, visibleSize.height / 2.0f - visibleSize.height * 0.2));
+        levelsButton->addTouchEventListener([&](Ref *pSender, ui::Widget::TouchEventType type){
+            if (type == ui::Widget::TouchEventType::ENDED){
+                Director::getInstance()->replaceScene(GameLevelSelect::createScene());
+            }
+        });
+        levelsButton->setZoomScale(0.4f);
+        levelsButton->setScale(1.5f);
+        levelsButton->setPressedActionEnabled(true);
+        auto text = ui::Text::create("Levels","fonts/Marker Felt.ttf",24);
+        text->setColor(Color3B(255, 255, 255));
+        text->setPosition(levelsButton->getPosition());
+        this->addChild(levelsButton);
+        this->addChild(text);
+    }
+
+    {
         auto quitButton = ui::Button::create("animationbuttonnormal.png");
-        quitButton->setPosition(Vec2(visibleSize.width / 2.0f, visibleSize.height / 2.0f - visibleSize.height * 0.2));
+        quitButton->setPosition(Vec2(visibleSize.width / 2.0f, visibleSize.height / 2.0f - visibleSize.height * 0.4));
         quitButton->addTouchEventListener([&](Ref *pSender, ui::Widget::TouchEventType type){
             if (type == ui::Widget::TouchEventType::ENDED){
                 Director::getInstance()->end();
@@ -716,6 +791,9 @@ bool GameStart::init()
     camera->setPosition3D(Vec3(0.0f, 0.0f, 1.0f));
     camera->lookAt(Vec3(0.0f, 0.0f, 0.0f), Vec3(0.0f, 1.0f, 0.0f));
     this->addChild(camera);
+
+    GameData::Instance()->resetLevel();
+
     return true;
 }
 
@@ -787,5 +865,144 @@ bool GameOver::init()
     camera->setPosition3D(Vec3(0.0f, 0.0f, 1.0f));
     camera->lookAt(Vec3(0.0f, 0.0f, 0.0f), Vec3(0.0f, 1.0f, 0.0f));
     this->addChild(camera);
+    return true;
+}
+
+cocos2d::Scene* GameLevelSelect::createScene()
+{
+    // 'scene' is an autorelease object
+    auto scene = Scene::create();
+
+    // 'layer' is an autorelease object
+    auto layer = GameLevelSelect::create();
+
+    // add layer as a child to scene
+    scene->addChild(layer);
+
+    // return the scene
+
+    return scene;
+}
+
+bool GameLevelSelect::init()
+{
+    // 1. super init first
+    if ( !Layer::init())
+    {
+        return false;
+    }
+
+    Vec2 origin = Director::getInstance()->getVisibleOrigin();
+    Size visibleSize = Director::getInstance()->getVisibleSize();
+    // add "HelloWorld" splash screen"
+    auto sprite = Sprite::create("levelground.png");
+    // position the sprite on the center of the screen
+    //sprite->setPosition(Vec2(visibleSize.width/2 + origin.x, visibleSize.height/2 + origin.y));
+    sprite->setCameraMask((unsigned short)CameraFlag::USER1);
+    sprite->setAnchorPoint(Vec2(0.0f, 0.0f));
+    //add the sprite as a child to this layer
+    this->addChild(sprite);
+
+    // Create the page view
+    ui::PageView* pageView = ui::PageView::create();
+    pageView->setContentSize(Size(visibleSize.width * 0.7f, visibleSize.height * 0.5f));
+    pageView->setPosition(Vec2(visibleSize.width / 2.0f, visibleSize.height / 2.0f));\
+    pageView->setAnchorPoint(Vec2(0.5f, 0.5f));
+    this->addChild(pageView);
+
+    if (!GameData::Instance()->levelList.empty())
+    {
+        auto iter = GameData::Instance()->levelList.begin();
+        while (iter != GameData::Instance()->levelList.end())
+        {
+            auto vBox = ui::VBox::create(pageView->getContentSize());
+            for (int h = 0; h < 2 && iter != GameData::Instance()->levelList.end(); ++h)
+            {
+                auto hBox = ui::HBox::create();
+                for (int v = 0; v < 3 && iter != GameData::Instance()->levelList.end(); ++v)
+                {
+                    auto levelButton = ui::Button::create("levelicon.png");
+                    levelButton->addTouchEventListener([&](Ref *pSender, ui::Widget::TouchEventType type){
+                        if (type == ui::Widget::TouchEventType::ENDED){
+                            ui::Button *button = dynamic_cast<ui::Button *>(pSender);
+                            if (button){
+                                GameData::Instance()->currentLevel = button->getActionTag();
+                                Director::getInstance()->replaceScene(GameWorld::createScene());
+                            }
+                        }
+                    });
+                    levelButton->setActionTag(iter->first);
+                    levelButton->setZoomScale(0.2f);
+                    //levelButton->setScale(1.5f);
+                    levelButton->setPressedActionEnabled(true);
+                    hBox->addChild(levelButton);
+
+                    char str[8];
+                    sprintf(str, "%d", iter->first);
+                    auto text = ui::Text::create(str,"fonts/Marker Felt.ttf",24);
+                    text->setColor(Color3B(255, 255, 255));
+                    text->setPosition(Vec2(levelButton->getContentSize().width / 2.0f, levelButton->getContentSize().height / 2.0f));
+                    levelButton->addChild(text);
+
+                    ++iter;
+                }
+                ui::LinearLayoutParameter *parameter = ui::LinearLayoutParameter::create();
+                parameter->setMargin(ui::Margin(250.0f, 50.0f, 0.0f, 100.0f));
+                hBox->setLayoutParameter(parameter);
+                vBox->addChild(hBox);
+            }
+            pageView->addPage(vBox);
+        }
+
+    }
+
+
+    //for (auto iter : GameData::Instance()->levelList)
+    //{
+    //	auto levelButton = ui::Button::create("levelicon.png");
+    //	levelButton->setPosition(Vec2(visibleSize.width / 3.5f + visibleSize.width * 0.1 * ((iter.first - 1) % 6), visibleSize.height * 0.75 - visibleSize.height * 0.15 * ((iter.first - 1) / 6)));
+    //	levelButton->addTouchEventListener([&](Ref *pSender, ui::Widget::TouchEventType type){
+    //		if (type == ui::Widget::TouchEventType::ENDED){
+    //			ui::Button *button = dynamic_cast<ui::Button *>(pSender);
+    //			if (button){
+    //				GameData::Instance()->currentLevel = button->getActionTag();
+    //				Director::getInstance()->replaceScene(GameWorld::createScene());
+    //			}
+    //		}
+    //	});
+    //	levelButton->setActionTag(iter.first);
+    //	levelButton->setZoomScale(0.2f);
+    //	//levelButton->setScale(1.5f);
+    //	levelButton->setPressedActionEnabled(true);
+    //	this->addChild(levelButton);
+
+    //	char str[8];
+    //	sprintf(str, "%d", iter.first);
+    //	auto text = ui::Text::create(str,"fonts/Marker Felt.ttf",24);
+    //	text->setColor(Color3B(255, 255, 255));
+    //	text->setPosition(levelButton->getPosition());
+    //	this->addChild(text);
+    //}
+
+    {
+        auto menuButton = ui::Button::create("menu.png");
+        menuButton->setPosition(Vec2(visibleSize.width - visibleSize.width * 0.1, visibleSize.height * 0.1));
+        menuButton->addTouchEventListener([&](Ref *pSender, ui::Widget::TouchEventType type){
+            if (type == ui::Widget::TouchEventType::ENDED){
+                Director::getInstance()->replaceScene(GameStart::createScene());
+            }
+        });
+        menuButton->setZoomScale(0.4f);
+        //menuButton->setScale(1.5f);
+        menuButton->setPressedActionEnabled(true);
+        this->addChild(menuButton);
+    }
+
+    auto camera = Camera::createOrthographic(sprite->getContentSize().width, sprite->getContentSize().height, 1.0f, 1000.0f);
+    camera->setCameraFlag(CameraFlag::USER1);
+    camera->setPosition3D(Vec3(0.0f, 0.0f, 1.0f));
+    camera->lookAt(Vec3(0.0f, 0.0f, 0.0f), Vec3(0.0f, 1.0f, 0.0f));
+    this->addChild(camera);
+
     return true;
 }

@@ -23,11 +23,13 @@ void AppDelegate::initGLContextAttrs()
 }
 
 bool AppDelegate::applicationDidFinishLaunching() {
-    // initialize director
+    //read game data
+    if (!GameData::Instance()->readLevelData("levels.xml")) return false;
+     // initialize director
     auto director = Director::getInstance();
     auto glview = director->getOpenGLView();
     if(!glview) {
-        glview = GLViewImpl::create("My Game");
+        glview = GLViewImpl::create("Link Game");
         director->setOpenGLView(glview);
     }
 

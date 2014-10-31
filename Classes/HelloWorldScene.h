@@ -6,6 +6,17 @@
 
 struct GameData
 {
+    GameData();
+    static GameData* Instance()
+    {
+        static GameData gameData;
+        return &gameData;
+    }
+
+    bool readLevelData(const std::string &filePath);
+
+    void resetLevel();
+
     std::vector<std::string> textureList;
     struct Level
     {
@@ -13,6 +24,8 @@ struct GameData
         std::vector< std::pair<int, int> > locations;
     };
     std::map< int,  Level> levelList;
+
+    int currentLevel;
 };
 
 class GameStart : public cocos2d::Layer
@@ -21,6 +34,19 @@ public:
     CREATE_FUNC(GameStart);
     GameStart(){}
     ~GameStart(){}
+
+    // there's no 'id' in cpp, so we recommend returning the class instance pointer
+    static cocos2d::Scene* createScene();
+
+    virtual bool init() override;
+};
+
+class GameLevelSelect : public cocos2d::Layer
+{
+public:
+    CREATE_FUNC(GameLevelSelect);
+    GameLevelSelect(){};
+    ~GameLevelSelect(){};
 
     // there's no 'id' in cpp, so we recommend returning the class instance pointer
     static cocos2d::Scene* createScene();
@@ -61,7 +87,7 @@ private:
     void setHandleEvent();
     void setTimeLine();
     void setScore();
-    void resetLevel(int level);
+    void resetLevel();
     bool isTouchElement(cocos2d::Touch *touch);
     bool checkNeedEliminate();
     bool canReached(int location);
@@ -72,8 +98,6 @@ private:
     void updateScore();
     void gameOver();
     void gamePass();
-
-    bool readLevels();
 
 private:
 
@@ -94,10 +118,7 @@ private:
     cocos2d::Label *_scoreLabel;
     int _score;
 
-    int _level;
     cocos2d::Label *_levelLabel;
-
-    GameData _gameData;
 };
 
 #endif // __HELLOWORLD_SCENE_H__

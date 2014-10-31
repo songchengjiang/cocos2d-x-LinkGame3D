@@ -36,4 +36,100 @@
     <location x="8" y="5" />
     <location x="5" y="5" />
   </Level>
+  <Level value="3" background="background1.png">
+    <location x="0" y="0" />
+    <location x="0" y="5" />
+    <location x="5" y="2" />
+    <location x="1" y="8" />
+    <location x="6" y="6" />
+    <location x="7" y="8" />
+    <location x="2" y="4" />
+    <location x="4" y="2" />
+    <location x="8" y="9" />
+    <location x="9" y="9" />
+  </Level>
+  <Level value="4" background="background2.png">
+    <location x="0" y="0" />
+    <location x="0" y="5" />
+    <location x="5" y="2" />
+    <location x="1" y="8" />
+    <location x="6" y="6" />
+    <location x="7" y="8" />
+    <location x="2" y="4" />
+    <location x="4" y="2" />
+    <location x="8" y="9" />
+    <location x="9" y="9" />
+  </Level>
+  <Level value="5" background="background1.png">
+    <location x="0" y="0" />
+    <location x="0" y="5" />
+    <location x="5" y="2" />
+    <location x="1" y="8" />
+    <location x="6" y="6" />
+    <location x="7" y="8" />
+    <location x="2" y="4" />
+    <location x="4" y="2" />
+    <location x="8" y="9" />
+    <location x="9" y="9" />
+  </Level>
+  <Level value="6" background="background2.png">
+    <location x="0" y="0" />
+    <location x="0" y="5" />
+    <location x="5" y="2" />
+    <location x="1" y="8" />
+    <location x="6" y="6" />
+    <location x="7" y="8" />
+    <location x="2" y="4" />
+    <location x="4" y="2" />
+    <location x="8" y="9" />
+    <location x="9" y="9" />
+  </Level>
+  <Level value="7" background="background1.png">
+    <location x="0" y="0" />
+    <location x="0" y="5" />
+    <location x="5" y="2" />
+    <location x="1" y="8" />
+    <location x="6" y="6" />
+    <location x="7" y="8" />
+    <location x="2" y="4" />
+    <location x="4" y="2" />
+    <location x="8" y="9" />
+    <location x="9" y="9" />
+  </Level>
+  <Level value="8" background="background2.png">
+    <location x="0" y="0" />
+    <location x="0" y="5" />
+    <location x="5" y="2" />
+    <location x="1" y="8" />
+    <location x="6" y="6" />
+    <location x="7" y="8" />
+    <location x="2" y="4" />
+    <location x="4" y="2" />
+    <location x="8" y="9" />
+    <location x="9" y="9" />
+  </Level>
+  <Level value="9" background="background1.png">
+    <location x="0" y="0" />
+    <location x="0" y="5" />
+    <location x="5" y="2" />
+    <location x="1" y="8" />
+    <location x="6" y="6" />
+    <location x="7" y="8" />
+    <location x="2" y="4" />
+    <location x="4" y="2" />
+    <location x="8" y="9" />
+    <location x="9" y="9" />
+  </Level>
+  <Level value="10" background="background2.png">
+    <location x="0" y="0" />
+    <location x="0" y="5" />
+    <location x="5" y="2" />
+    <location x="1" y="8" />
+    <location x="6" y="6" />
+    <location x="7" y="8" />
+    <location x="2" y="4" />
+    <location x="4" y="2" />
+    <location x="8" y="9" />
+    <location x="9" y="9" />
+  </Level>
 </LinkGame>
